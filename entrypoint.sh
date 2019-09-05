@@ -35,11 +35,9 @@ if [ -f requirements.txt ]; then
 fi
 
 # Handy if you need to install libraries before running pyinstaller
-if [[ $PLATFORMS == *"linux"* ]]; then
-    SHELL_CMDS=${SHELL_CMDS:-}
-    if [[ "$SHELL_CMDS" != "" ]]; then
-        /bin/bash -c "$SHELL_CMDS"
-    fi
+SHELL_CMDS=${SHELL_CMDS:-}
+if [[ "$SHELL_CMDS" != "" ]]; then
+    /bin/bash -c "$SHELL_CMDS"
 fi
 
 echo "$@"
@@ -67,6 +65,32 @@ if [[ $PLATFORMS == *"win"* && $ret == 0 ]]; then
         --workpath /tmp \
         -p . \
         $@
+    ret=$?
+
+    if [[ $ret == 0 && $CODESIGN_KEYFILE != "" && $CODESIGN_PASS != "" ]]; then
+        openssl pkcs12 -in $CODESIGN_KEYFILE -nocerts -nodes -password env:CODESIGN_PASS -out /dev/shm/key.pem
+        openssl rsa -in /dev/shm/key.pem -outform PVK -pvk-none -out /dev/shm/authenticode.pvk
+        openssl pkcs12 -in $CODESIGN_KEYFILE -nokeys -nodes  -password env:CODESIGN_PASS -out /dev/shm/cert.pem
+
+        # if the user provides the certificateof the issuer, attach that one too
+        if [[ $CODESIGN_EXTRACERT != "" ]]; then
+            cat $CODESIGN_EXTRACERT >> /dev/shm/cert.pem
+        fi
+
+        openssl crl2pkcs7 -nocrl -certfile /dev/shm/cert.pem -outform DER -out /dev/shm/authenticode.spc
+
+        for exefile in dist/windows/*.exe; do
+            echo "Signing Windows binary $exefile"
+            signcode \
+                -spc /dev/shm/authenticode.spc \
+                -v /dev/shm/authenticode.pvk \
+                -a sha256 -$ commercial \
+                -t http://timestamp.verisign.com/scripts/timstamp.dll \
+                -tr 5 -tw 60 \
+                "$exefile"
+            mv "$exefile.bak" "$(dirname $exefile)/unsigned_$(basename $exefile)"
+        done
+    fi
 fi
 
 chown -R --reference=. dist

@@ -63,6 +63,11 @@ yum -y install \
     yasm \
     ${PYTHON_COMPILE_DEPS}
 
+# Install Mono (to be able to sign windows executables)
+rpm --import ${MY_DIR}/mono-pubkeys.txt
+curl https://download.mono-project.com/repo/centos6-stable.repo | tee /etc/yum.repos.d/mono-centos6-stable.repo
+yum -y install mono-devel
+
 # Build an OpenSSL for Pythons. We'll delete this at the end.
 build_openssl $OPENSSL_ROOT $OPENSSL_HASH
 
@@ -140,11 +145,9 @@ rm -rf /usr/local/ssl
 yum -y erase \
     avahi \
     bitstream-vera-fonts \
-    freetype \
     gettext \
     gtk2 \
     hicolor-icon-theme \
-    libX11 \
     wireless-tools \
     cabextract \
     flex \

@@ -19,7 +19,7 @@ ENV W_TMP="$W_DRIVE_C/windows/temp/_$0"
 
 ENV SSL_CERT_FILE=/opt/_internal/certs.pem
 ENV LD_LIBRARY_PATH /opt/python/cp37-cp37m/lib:/opt/rh/devtoolset-8/root/usr/lib64:/opt/rh/devtoolset-8/root/usr/lib:/opt/rh/devtoolset-8/root/usr/lib64/dyninst:/opt/rh/devtoolset-8/root/usr/lib/dyninst:/usr/local/lib64:/usr/local/lib
-ENV PATH /opt/python/cp37-cp37m/bin:$PATH
+ENV PATH /opt/python/cp37-cp37m/bin:$PATH:/Library/Frameworks/Mono.framework/Commands
 
 COPY build_scripts /build_scripts
 RUN bash /build_scripts/build.sh && rm -fr /build_scripts
@@ -28,5 +28,9 @@ WORKDIR /src
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+ARG dumbinit_version=1.2.1
+RUN curl -L -o /usr/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v${dumbinit_version}/dumb-init_${dumbinit_version}_amd64 && \
+    chmod +x /usr/bin/dumb-init
+
 VOLUME /src
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint.sh"]
