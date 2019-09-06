@@ -8,6 +8,7 @@ if [[ "$REPRO_BUILD" == "yes" ]]; then
     PYTHONHASHSEED=1
     export PYTHONHASHSEED
 fi
+export PYTHONDONTWRITEBYTECODE=1
 
 PLATFORMS=${PLATFORMS:-win,linux}
 
