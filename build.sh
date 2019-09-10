@@ -40,7 +40,6 @@ if [ -n "$DOCKER_REGISTRY_USER" ]; then
 fi
 
 if [ -n "$DOCKER_REGISTRY_URL" ]; then
-    DOCKER_TAG_LATEST="$DOCKER_REGISTRY_URL/$DOCKER_TAG_LATEST"
     DOCKER_TAG="$DOCKER_REGISTRY_URL/$DOCKER_TAG"
 fi
 
@@ -61,6 +60,7 @@ if [ -n "$DOCKER_REGISTRY_USER" ]; then
 
     # Also push latest in dev
     if [[ -n "$DOCKER_TAG_LATEST" ]]; then
+        DOCKER_TAG_LATEST="$DOCKER_REGISTRY_URL/$DOCKER_TAG_LATEST"
         docker tag "$DOCKER_TAG" "$DOCKER_TAG_LATEST"
         docker push "$DOCKER_TAG_LATEST"
     fi
