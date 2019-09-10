@@ -25,9 +25,10 @@ if [ -z "$CI_COMMIT_REF_SLUG" ]; then
 fi
 
 if [[ "$CI_COMMIT_REF_SLUG" = "master" ]]; then
-    DOCKER_TAG=$DOCKER_TAG:latest
+    DOCKER_TAG="$DOCKER_TAG:latest"
 else
-    DOCKER_TAG=$DOCKER_TAG:$CI_COMMIT_REF_SLUG
+    DOCKER_TAG_LATEST="$DOCKER_TAG:latest"
+    DOCKER_TAG="$DOCKER_TAG:$CI_COMMIT_REF_SLUG"
 fi
 echo "$DOCKER_TAG"
 
@@ -39,6 +40,7 @@ if [ -n "$DOCKER_REGISTRY_USER" ]; then
 fi
 
 if [ -n "$DOCKER_REGISTRY_URL" ]; then
+    DOCKER_TAG_LATEST="$DOCKER_REGISTRY_URL/$DOCKER_TAG_LATEST"
     DOCKER_TAG="$DOCKER_REGISTRY_URL/$DOCKER_TAG"
 fi
 
@@ -56,4 +58,10 @@ docker images "$DOCKER_TAG"
 if [ -n "$DOCKER_REGISTRY_USER" ]; then
     echo "Send Image to Registry"
     docker push "$DOCKER_TAG"
+
+    # Also push latest in dev
+    if [[ -n "$DOCKER_TAG_LATEST" ]]; then
+        docker tag "$DOCKER_TAG" "$DOCKER_TAG_LATEST"
+        docker push "$DOCKER_TAG_LATEST"
+    fi
 fi
