@@ -3,6 +3,10 @@
 # Stop at any error, show all commands
 set -ex
 
+LATEST_PY=$(cat /latest_py)
+export LD_LIBRARY_PATH=$LATEST_PY/lib:$LD_LIBRARY_PATH
+export PATH=$LATEST_PY/bin:$PATH
+
 REPRO_BUILD=${REPRO_BUILD:-yes}
 if [[ "$REPRO_BUILD" == "yes" ]]; then
     PYTHONHASHSEED=1

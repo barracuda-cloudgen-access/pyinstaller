@@ -7,14 +7,28 @@ set -ex
 # Set build environment variables
 MY_DIR=$(dirname "${BASH_SOURCE[0]}")
 
-# obtain latest version of the requirements.txt/buid_env.sh file from manylinux repo
-curl -fsSLo $MY_DIR/requirements.txt https://raw.githubusercontent.com/pypa/manylinux/master/docker/build_scripts/requirements.txt
-curl -fsSLo $MY_DIR/build_env.sh https://raw.githubusercontent.com/pypa/manylinux/master/docker/build_scripts/build_env.sh
+# obtain latest version of all required build_scripts/ file from the manylinux repo
+for one in ambv-pubkey.txt build_env.sh cpython-pubkeys.txt manylinux-check.py python-tag-abi-tag.py requirements.txt ssl-check.py; do
+    curl -fsSLo $MY_DIR/$one https://raw.githubusercontent.com/pypa/manylinux/master/docker/build_scripts/$one
+done
 
 . $MY_DIR/build_env.sh
 
-# pick last CPYTHON version (should be latest 3.7)
+# pick lastest CPYTHON version
 for CPYTHON_VERSION in $CPYTHON_VERSIONS; do true; done
+
+# See https://unix.stackexchange.com/questions/41784/can-yum-express-a-preference-for-x86-64-over-i386-packages
+echo "multilib_policy=best" >> /etc/yum.conf
+
+# https://hub.docker.com/_/centos/
+# "Additionally, images with minor version tags that correspond to install
+# media are also offered. These images DO NOT recieve updates as they are
+# intended to match installation iso contents. If you choose to use these
+# images it is highly recommended that you include RUN yum -y update && yum
+# clean all in your Dockerfile, or otherwise address any potential security
+# concerns."
+# Decided not to clean at this point: https://github.com/pypa/manylinux/pull/129
+yum -y update
 
 # Dependencies for compiling Python that we want to remove from
 # the final image after compiling Python
@@ -86,20 +100,23 @@ chmod +x /usr/local/bin/winetricks
 
 winetricks win7
 
+MAJMINWITHDOT=${CPYTHON_VERSION:0:3}
+MAJMINNODOT="${CPYTHON_VERSION:0:1}${CPYTHON_VERSION:2:1}"
+
 for msifile in `echo core dev exe lib path tcltk tools`; do
     curl -O "https://www.python.org/ftp/python/$CPYTHON_VERSION/amd64/${msifile}.msi"
-    wine msiexec /i "${msifile}.msi" /qb TARGETDIR=C:/Python37
+    wine msiexec /i "${msifile}.msi" /qb TARGETDIR=C:/Python$MAJMINNODOT
     while pgrep wineserver >/dev/null; do echo "Waiting for wineserver"; sleep 1; done
     rm -f ${msifile}.msi
 done
 
-cd /wine/drive_c/Python37
+cd /wine/drive_c/Python$MAJMINNODOT
 mkdir -p /usr/win64/bin/
-echo 'wine '\''C:\Python37\python.exe'\'' "$@"' > /usr/win64/bin/python
-echo 'wine '\''C:\Python37\Scripts\easy_install-3.7.exe'\'' "$@"' > /usr/win64/bin/easy_install
-echo 'wine '\''C:\Python37\Scripts\pip3.7.exe'\'' "$@"' > /usr/win64/bin/pip
+echo 'wine '\'"C:\Python$MAJMINNODOT\python.exe"\'' "$@"' > /usr/win64/bin/python
+echo 'wine '\'"C:\Python$MAJMINNODOT\Scripts\easy_install-$MAJMINWITHDOT.exe"\'' "$@"' > /usr/win64/bin/easy_install
+echo 'wine '\'"C:\Python$MAJMINNODOT\Scripts\pip$MAJMINWITHDOT.exe"\'' "$@"' > /usr/win64/bin/pip
 echo 'assoc .py=PythonScript' | wine cmd
-echo 'ftype PythonScript=c:\Python37\python.exe "%1" %*' | wine cmd
+echo "ftype PythonScript=c:\Python$MAJMINNODOT\python.exe"' "%1" %*' | wine cmd
 while pgrep wineserver >/dev/null; do echo "Waiting for wineserver"; sleep 1; done
 chmod +x /usr/win64/bin/python /usr/win64/bin/easy_install /usr/win64/bin/pip
 
@@ -124,18 +141,27 @@ cp "$W_TMP"/*.dll "$W_SYSTEM64_DLLS"/
 mkdir -p /src/ && ln -s /src /wine/drive_c/src
 mkdir -p /wine/drive_c/tmp
 
-# update pip
+# update pip for windows
 (/usr/win64/bin/pip install -U pip || true)
 
-# install latest pyinstaller
+# install latest pyinstaller for windows
 /usr/win64/bin/pip install pyinstaller
-echo 'wine '\''C:\Python37\Scripts\pyinstaller.exe'\'' "$@"' > /usr/win64/bin/pyinstaller
+echo 'wine '\'"C:\Python$MAJMINNODOT\Scripts\pyinstaller.exe"\'' "$@"' > /usr/win64/bin/pyinstaller
 chmod +x /usr/win64/bin/pyinstaller
 
 build_cpythons $CPYTHON_VERSION
 
-PY37_BIN=/opt/python/cp37-cp37m/bin
-$PY37_BIN/pip install pyinstaller
+# pick latest python version
+for dir in /opt/python/cp$MAJMINNODOT-*; do
+    LATEST_PY="$dir";
+done
+echo "$LATEST_PY" > /latest_py
+
+# update pip for linux
+($LATEST_PY/bin/pip install -U pip || true)
+
+# install latest pyinstaller for linux
+$LATEST_PY/bin/pip install pyinstaller
 
 # Now we can delete our built OpenSSL headers/static libs since we've linked everything we need
 rm -rf /usr/local/ssl
@@ -182,6 +208,9 @@ done
 find /opt/_internal -depth \
      \( -type d -a -name test -o -name tests \) \
   -o \( -type f -a -name '*.pyc' -o -name '*.pyo' \) | xargs rm -rf
+
+# Fix libc headers to remain compatible with C99 compilers.
+find /usr/include/ -type f -exec sed -i 's/\bextern _*inline_*\b/extern __inline __attribute__ ((__gnu_inline__))/g' {} +
 
 # remove useless things that have been installed by devtoolset-8
 rm -rf /opt/rh/devtoolset-8/root/usr/share/man
