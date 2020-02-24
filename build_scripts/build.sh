@@ -128,26 +128,10 @@ rm -rf /tmp/.wine-*
 yum -y install perl-ExtUtils-MakeMaker
 curl -fsSLo - "https://search.cpan.org/CPAN/authors/id/R/RM/RMBARKER/File-Rename-1.10.tar.gz" | tar -xz && ( cd "File-Rename-1.10"; perl "Makefile.PL"; make && make install )
 
-rm -f "$W_TMP"/*
 mkdir -p "$W_TMP"
-curl -o "$W_TMP"/VC_redist.x64.exe https://download.visualstudio.microsoft.com/download/pr/11100230/15ccb3f02745c7b206ad10373cbca89b/VC_redist.x64.exe
-cabextract -q --directory="$W_TMP" "$W_TMP"/VC_redist.x64.exe
-cabextract -q --directory="$W_TMP" "$W_TMP/a10"
-cabextract -q --directory="$W_TMP" "$W_TMP/a11"
-cd "$W_TMP"
-/usr/local/bin/rename 's/_/\-/g' *.dll
-cp "$W_TMP"/*.dll "$W_SYSTEM64_DLLS"/
-
+rm -f "$W_TMP"/*
 mkdir -p /src/ && ln -s /src /wine/drive_c/src
 mkdir -p /wine/drive_c/tmp
-
-# update pip for windows
-(/usr/win64/bin/pip install -U pip || true)
-
-# install latest pyinstaller for windows
-/usr/win64/bin/pip install pyinstaller
-echo 'wine '\'"C:\Python$MAJMINNODOT\Scripts\pyinstaller.exe"\'' "$@"' > /usr/win64/bin/pyinstaller
-chmod +x /usr/win64/bin/pyinstaller
 
 build_cpythons $CPYTHON_VERSION
 
@@ -162,6 +146,14 @@ echo "$LATEST_PY" > /latest_py
 
 # install latest pyinstaller for linux
 $LATEST_PY/bin/pip install pyinstaller
+
+# update pip for windows
+(/usr/win64/bin/pip install -U pip || true)
+
+# install latest pyinstaller for windows
+/usr/win64/bin/pip install pyinstaller
+echo 'wine '\'"C:\Python$MAJMINNODOT\Scripts\pyinstaller.exe"\'' "$@"' > /usr/win64/bin/pyinstaller
+chmod +x /usr/win64/bin/pyinstaller
 
 # Now we can delete our built OpenSSL headers/static libs since we've linked everything we need
 rm -rf /usr/local/ssl

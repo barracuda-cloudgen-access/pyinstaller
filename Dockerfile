@@ -1,3 +1,22 @@
+# Taken from https://github.com/mstorsjo/msvc-wine/
+FROM ubuntu:19.04 AS vcbuilder
+
+RUN dpkg --add-architecture i386 && \
+    apt-get update && \
+    apt-get install -y python msitools python-simplejson python-six ca-certificates && \
+    apt-get clean -y && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/msvc
+COPY msvc/vsdownload.py ./
+RUN ./vsdownload.py --accept-license --dest /opt/msvc && \
+    rm -f vsdownload.py && \
+    rm -fr 'DIA SDK'
+RUN find -iname arm -type d -exec rm -fr \{\} \; || true
+RUN find -iname x86 -type d -exec rm -fr \{\} \; || true
+RUN find -iname arm64 -type d -exec rm -fr \{\} \; || true
+
+
 FROM quay.io/pypa/manylinux2010_x86_64
 LABEL maintainer="Fyde Inc"
 
@@ -12,8 +31,12 @@ ENV W_TMP="$W_DRIVE_C/windows/temp/_$0"
 
 ENV PATH $PATH:/Library/Frameworks/Mono.framework/Commands
 
-COPY build_scripts/* /build_scripts/
+COPY build_scripts/ /build_scripts/
 RUN bash /build_scripts/build.sh && rm -fr /build_scripts
+
+COPY msvc/ /msvc/
+COPY --from=vcbuilder /opt/msvc /opt/msvc
+RUN bash /msvc/install.sh /opt/msvc && rm -fr /msvc
 
 WORKDIR /src
 COPY entrypoint.sh /entrypoint.sh
