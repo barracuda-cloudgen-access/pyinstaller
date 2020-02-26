@@ -7,6 +7,9 @@ LATEST_PY=$(cat /latest_py)
 export LD_LIBRARY_PATH=$LATEST_PY/lib:$LD_LIBRARY_PATH
 export PATH=$LATEST_PY/bin:$PATH
 
+source /opt/msvc/bin/x64/msvcenv.sh
+export DISTUTILS_USE_SDK=1
+
 REPRO_BUILD=${REPRO_BUILD:-yes}
 if [[ "$REPRO_BUILD" == "yes" ]]; then
     PYTHONHASHSEED=1
