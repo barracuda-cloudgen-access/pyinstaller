@@ -14,8 +14,12 @@ done
 
 . $MY_DIR/build_env.sh
 
-# pick lastest CPYTHON version
-for CPYTHON_VERSION in $CPYTHON_VERSIONS; do true; done
+# pick lastest 3.7 CPYTHON version (3.8 is not supported on pyinstaller yet)
+for VERSION in $CPYTHON_VERSIONS; do
+    if [[ $VERSION == *"3.7."* ]]; then
+        CPYTHON_VERSION=$VERSION
+    fi
+done
 
 # See https://unix.stackexchange.com/questions/41784/can-yum-express-a-preference-for-x86-64-over-i386-packages
 echo "multilib_policy=best" >> /etc/yum.conf
@@ -135,17 +139,17 @@ mkdir -p /wine/drive_c/tmp
 
 build_cpythons $CPYTHON_VERSION
 
-# pick latest python version
+# pick python version
 for dir in /opt/python/cp$MAJMINNODOT-*; do
-    LATEST_PY="$dir";
+    PY_VERSION="$dir";
 done
-echo "$LATEST_PY" > /latest_py
+echo "$PY_VERSION" > /py_version
 
 # update pip for linux
-($LATEST_PY/bin/pip install -U pip || true)
+($PY_VERSION/bin/pip install -U pip || true)
 
 # install latest pyinstaller for linux
-$LATEST_PY/bin/pip install pyinstaller
+$PY_VERSION/bin/pip install pyinstaller
 
 # update pip for windows
 (/usr/win64/bin/pip install -U pip || true)
