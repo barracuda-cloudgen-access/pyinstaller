@@ -1,5 +1,5 @@
 # Taken from https://github.com/mstorsjo/msvc-wine/
-FROM ubuntu:19.04 AS vcbuilder
+FROM ubuntu:20.04 AS vcbuilder
 
 RUN dpkg --add-architecture i386 && \
     apt-get update && \
