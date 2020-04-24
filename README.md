@@ -2,7 +2,7 @@
 
 This container is based on the official [Python Manylinux](https://github.com/pypa/manylinux/) docker image, which sets an entire build environment based on a very old linux version in a way such that when you build a python binary module on it, it is assured to work on any modern (glibc based) Linux.
 
-We had to rebuild Python inside this container using shared libraries (only latest Python 3 is supported)
+We had to rebuild Python inside this container using shared libraries (only latest Python 3 where PyInstaller works is supported)
 to be able to use it with the [Pyinstaller project](https://pyinstaller.org) and on top of that, the image also has a working Wine 4 installed (Wine is a Microsoft Windows emulator) with Python for windows, pip, etc. added to be able to create Pyinstaller Windows executables too. The idea for building Windows binaries using Wine was taken from [here](https://github.com/cdrx/docker-pyinstaller), but improved, based on manylinux and made polyglot, ie. the same container does both Linux and Windows.
 
 The goal of this project then is to be able to produce single-file binaries for Linux x68-64 that only depend on a very basic (read old) libc and for x86-64 Microsoft Windows (Windows 7 and up).

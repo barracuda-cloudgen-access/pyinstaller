@@ -3,9 +3,9 @@
 # Stop at any error, show all commands
 set -ex
 
-LATEST_PY=$(cat /latest_py)
-export LD_LIBRARY_PATH=$LATEST_PY/lib:$LD_LIBRARY_PATH
-export PATH=$LATEST_PY/bin:$PATH
+PY_VERSION=$(cat /py_version)
+export LD_LIBRARY_PATH=$PY_VERSION/lib:$LD_LIBRARY_PATH
+export PATH=$PY_VERSION/bin:$PATH
 
 source /opt/msvc/bin/x64/msvcenv.sh
 export DISTUTILS_USE_SDK=1
