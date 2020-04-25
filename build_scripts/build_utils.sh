@@ -64,7 +64,7 @@ function do_cpython_build {
         ln -s python3 ${prefix}/bin/python
     fi
     export LD_LIBRARY_PATH=${prefix}/lib:$LD_LIBRARY_PATH
-    ${prefix}/bin/python get-pip.py
+    ${prefix}/bin/python -m ensurepip
     if [ -e ${prefix}/bin/pip3 ] && [ ! -e ${prefix}/bin/pip ]; then
         ln -s pip3 ${prefix}/bin/pip
     fi
@@ -96,8 +96,6 @@ function build_cpython {
 
 
 function build_cpythons {
-    check_var $GET_PIP_URL
-    curl -fsSLO $GET_PIP_URL
     # Import public keys used to verify downloaded Python source tarballs.
     # https://www.python.org/static/files/pubkeys.txt
     gpg --import ${MY_DIR}/cpython-pubkeys.txt
@@ -108,7 +106,6 @@ function build_cpythons {
     done
     # Remove GPG hidden directory.
     rm -rf /root/.gnupg/
-    rm -f get-pip.py
 }
 
 
@@ -225,7 +222,7 @@ function build_libxcrypt {
     curl -fsSLO "$LIBXCRYPT_DOWNLOAD_URL"/v"$LIBXCRYPT_VERSION"
     check_sha256sum "v$LIBXCRYPT_VERSION" "$LIBXCRYPT_HASH"
     tar xfz "v$LIBXCRYPT_VERSION"
-    (cd "libxcrypt-$LIBXCRYPT_VERSION" && ./bootstrap && \
+    (cd "libxcrypt-$LIBXCRYPT_VERSION" && ./autogen.sh && \
         do_standard_install \
         --disable-obsolete-api \
         --enable-hashes=all \
