@@ -30,6 +30,7 @@ ENV W_SYSTEM64_DLLS="$W_WINDIR_UNIX/system32"
 ENV W_TMP="$W_DRIVE_C/windows/temp/_$0"
 
 ENV PATH $PATH:/Library/Frameworks/Mono.framework/Commands
+ENV SSL_CERT_FILE=/opt/_internal/certs.pem
 
 COPY build_scripts/ /build_scripts/
 RUN bash /build_scripts/build.sh && rm -fr /build_scripts
