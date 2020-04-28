@@ -25,6 +25,7 @@ import subprocess
 import sys
 import tempfile
 import zipfile
+import time
 
 def getArgsParser():
     parser = argparse.ArgumentParser(description = "Download and install Visual Studio")
@@ -396,7 +397,11 @@ def downloadPackages(selected, cache, allowHashMismatch = False):
             if "size" in payload:
                 size = payload["size"]
             print("Downloading %s (%s)" % (fileid, formatSize(size)))
-            six.moves.urllib.request.urlretrieve(payload["url"], destname)
+            try:
+                six.moves.urllib.request.urlretrieve(payload["url"], destname)
+            except IOError:
+                time.sleep(5)
+                six.moves.urllib.request.urlretrieve(payload["url"], destname)
             downloaded = downloaded + size
             if "sha256" in payload:
                 if sha256File(destname).lower() != payload["sha256"].lower():
