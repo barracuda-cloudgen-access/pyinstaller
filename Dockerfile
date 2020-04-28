@@ -39,6 +39,8 @@ COPY msvc/ /msvc/
 COPY --from=vcbuilder /opt/msvc /opt/msvc
 RUN bash /msvc/install.sh /opt/msvc && rm -fr /msvc
 
+COPY hooks/ /hooks/
+
 WORKDIR /src
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

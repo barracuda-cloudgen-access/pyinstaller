@@ -60,6 +60,7 @@ if [[ $PLATFORMS == *"linux"* ]]; then
         --workpath /tmp \
         -p . \
         --add-binary '/usr/local/lib/libcrypt.so.2:.' \
+        --additional-hooks-dir '/hooks' \
         --hidden-import pkg_resources.py2_warn \
         $@
     ret=$?
