@@ -60,6 +60,7 @@ if [[ $PLATFORMS == *"linux"* ]]; then
         --workpath /tmp \
         -p . \
         --add-binary '/usr/local/lib/libcrypt.so.2:.' \
+        --hidden-import pkg_resources.py2_warn \
         $@
     ret=$?
 fi
@@ -72,6 +73,8 @@ if [[ $PLATFORMS == *"win"* && $ret == 0 ]]; then
         --distpath dist/windows \
         --workpath /tmp \
         -p . \
+        --hidden-import win32timezone \
+        --hidden-import pkg_resources.py2_warn \
         $@
     ret=$?
 
