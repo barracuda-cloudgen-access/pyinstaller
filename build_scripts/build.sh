@@ -137,22 +137,34 @@ rm -f "$W_TMP"/*
 mkdir -p /src/ && ln -s /src /wine/drive_c/src
 mkdir -p /wine/drive_c/tmp
 
-build_cpythons $CPYTHON_VERSION
-
 # pick python version
 for dir in /opt/python/cp$MAJMINNODOT-*; do
     PY_VERSION="$dir";
 done
 echo "$PY_VERSION" > /py_version
 
+# update certificates so SSL tests work
+($PY_VERSION/bin/pip install -U --force-reinstall certifi || true)
+
+cd /tmp
+build_cpythons $CPYTHON_VERSION
+export LD_LIBRARY_PATH=$PY_VERSION/lib:$LD_LIBRARY_PATH
+
 # update pip for linux
 ($PY_VERSION/bin/pip install -U pip || true)
+
+# update certificates so SSL work again
+($PY_VERSION/bin/pip install -U --force-reinstall certifi || true)
+rm -f /opt/_internal/certs.pem
+ln -s $($PY_VERSION/bin/python -c 'import certifi; print(certifi.where())') \
+      /opt/_internal/certs.pem
 
 # install latest pyinstaller for linux
 $PY_VERSION/bin/pip install pyinstaller
 
-# update pip for windows
+# update pip/certifi for windows
 (/usr/win64/bin/pip install -U pip || true)
+(/usr/win64/bin/pip install -U certifi || true)
 
 # install latest pyinstaller for windows
 /usr/win64/bin/pip install pyinstaller
@@ -190,13 +202,11 @@ find /opt/_internal -type f -print0 \
 find /usr/local -type f -print0 \
     | xargs -0 -n1 strip --strip-unneeded 2>/dev/null || true
 
-for PYTHON in /opt/python/*/bin/python; do
-    # Smoke test to make sure that our Pythons work, and do indeed detect as
-    # being manylinux compatible:
-    $PYTHON $MY_DIR/manylinux-check.py
-    # Make sure that SSL cert checking works
-    $PYTHON $MY_DIR/ssl-check.py
-done
+# Smoke test to make sure that our Pythons work, and do indeed detect as
+# being manylinux compatible:
+$PY_VERSION/bin/python $MY_DIR/manylinux-check.py
+# Make sure that SSL cert checking works
+$PY_VERSION/bin/python $MY_DIR/ssl-check.py
 
 # We do not need the Python test suites, or indeed the precompiled .pyc and
 # .pyo files. Partially cribbed from:
