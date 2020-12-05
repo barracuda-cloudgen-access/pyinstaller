@@ -7,6 +7,8 @@ to be able to use it with the [Pyinstaller project](https://pyinstaller.org) and
 
 The goal of this project then is to be able to produce single-file binaries for Linux x68-64 that only depend on a very basic (read old) libc and for x86-64 Microsoft Windows (Windows 7 and up).
 
+There is also support for Alpine Linux now as part of the same polyglot, tested on Alpine 3.3 and up.
+
 # Use mode
 
 To build the binary, you need to mount your source code folder into the container in the `/src` folder and any extra command line argument will be sent to Pyinstaller.
@@ -54,7 +56,7 @@ Some behavior can be changed by changing the environment of the container.
 | Key | Default value | Description |
 |-----|---------------|-------------|
 |REPRO_BUILD|yes|Create a [reproducible builds](https://pyinstaller.readthedocs.io/en/stable/advanced-topics.html#creating-a-reproducible-build) (ie. same python code will generate same binaries).|
-|PLATFORMS|win,linux|Select what kind of binaries to produce.|
+|PLATFORMS|win,linux,alpine|Select what kind of binaries to produce.|
 |SRCDIR|/src|Folder inside the container where the source code is mounted. CI runners might need to change this.|
 |PYPI_URL|https://pypi.python.org/|URL for the pypi package repositories, useful if you're using internal package caches.|
 |PYPI_INDEX_URL|https://pypi.python.org/simple|URL for the pypi index.|

@@ -24,9 +24,11 @@ if [ -z "$CI_COMMIT_REF_SLUG" ]; then
     CI_COMMIT_REF_SLUG="$(git symbolic-ref -q --short HEAD || git describe --tags --exact-match)"
 fi
 
-if [[ "$CI_COMMIT_REF_SLUG" = "master" ]]; then
+if [[ "$CI_COMMIT_REF_SLUG" = "main" ]]; then
     DOCKER_TAG="$DOCKER_TAG:latest"
+    NO_CACHE="--no-cache"
 else
+    NO_CACHE=""
     DOCKER_TAG_LATEST="$DOCKER_TAG:latest"
     DOCKER_TAG="$DOCKER_TAG:$CI_COMMIT_REF_SLUG"
 fi
@@ -49,7 +51,8 @@ if [ -n "$DOCKER_REGISTRY_USER" ]; then
 fi
 
 echo "Build Image"
-docker build --rm -t "$DOCKER_TAG" .
+docker build --rm $NO_CACHE -f Dockerfile-alpine -t "${DOCKER_TAG}_alpine" .
+docker build --rm $NO_CACHE --build-arg ALPINE_TAG="${DOCKER_TAG}_alpine" -t "$DOCKER_TAG" .
 
 echo "Image info"
 docker images "$DOCKER_TAG"

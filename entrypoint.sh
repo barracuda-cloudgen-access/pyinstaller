@@ -17,7 +17,7 @@ if [[ "$REPRO_BUILD" == "yes" ]]; then
 fi
 export PYTHONDONTWRITEBYTECODE=1
 
-PLATFORMS=${PLATFORMS:-win,linux}
+PLATFORMS=${PLATFORMS:-win,linux,alpine}
 
 WORKDIR=${SRCDIR:-/src}
 pushd "$WORKDIR"
@@ -108,3 +108,7 @@ fi
 chown -R --reference=. dist
 chown -R --reference=. *.spec
 popd
+
+if [[ $ret == 0 && $PLATFORMS == *"alpine"* ]]; then
+    /switch_to_alpine.sh $@
+fi

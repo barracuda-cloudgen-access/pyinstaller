@@ -1,3 +1,5 @@
+ARG ALPINE_TAG
+
 # Taken from https://github.com/mstorsjo/msvc-wine/
 FROM ubuntu:20.04 AS vcbuilder
 
@@ -16,6 +18,7 @@ RUN find -iname arm -type d -exec rm -fr \{\} \; || true
 RUN find -iname x86 -type d -exec rm -fr \{\} \; || true
 RUN find -iname arm64 -type d -exec rm -fr \{\} \; || true
 
+FROM $ALPINE_TAG as alpine_build
 
 FROM quay.io/pypa/manylinux2010_x86_64
 LABEL maintainer="Fyde Inc"
@@ -41,9 +44,12 @@ RUN bash /msvc/install.sh /opt/msvc && rm -fr /msvc
 
 COPY hooks/ /hooks/
 
+COPY --from=alpine_build / /alpine/
+
 WORKDIR /src
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY switch_to_alpine.sh /switch_to_alpine.sh
+RUN chmod +x /entrypoint.sh /switch_to_alpine.sh
 
 ARG dumbinit_version=1.2.1
 RUN curl -L -o /usr/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v${dumbinit_version}/dumb-init_${dumbinit_version}_amd64 && \
