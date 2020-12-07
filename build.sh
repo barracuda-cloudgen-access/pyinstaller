@@ -50,9 +50,11 @@ if [ -n "$DOCKER_REGISTRY_USER" ]; then
     docker pull "$DOCKER_TAG" || true
 fi
 
+# Get latest base images for manylinux
+docker pull quay.io/pypa/manylinux2010_x86_64
+
 echo "Build Image"
-docker build --rm $NO_CACHE -f Dockerfile-alpine -t "${DOCKER_TAG}_alpine" .
-docker build --rm $NO_CACHE --build-arg ALPINE_TAG="${DOCKER_TAG}_alpine" -t "$DOCKER_TAG" .
+docker build --rm $NO_CACHE -t "$DOCKER_TAG" .
 
 echo "Image info"
 docker images "$DOCKER_TAG"
