@@ -14,12 +14,17 @@ done
 
 . $MY_DIR/build_env.sh
 
-# pick lastest 3.7 CPYTHON version (3.8 is not supported on pyinstaller yet)
+CPYTHON_VERSION=""
 for VERSION in $CPYTHON_VERSIONS; do
-    if [[ $VERSION == *"3.7."* ]]; then
+    if [[ $VERSION == *"$PYTHON_VERSION"* ]]; then
         CPYTHON_VERSION=$VERSION
     fi
 done
+
+if [[ -z "$CPYTHON_VERSION" ]]; then
+    echo "Python version $PYTHON_VERSION not supported on pypa manylinux, check manually!"
+    exit 255
+fi
 
 # See https://unix.stackexchange.com/questions/41784/can-yum-express-a-preference-for-x86-64-over-i386-packages
 echo "multilib_policy=best" >> /etc/yum.conf
@@ -33,6 +38,14 @@ echo "multilib_policy=best" >> /etc/yum.conf
 # concerns."
 # Decided not to clean at this point: https://github.com/pypa/manylinux/pull/129
 yum -y update
+
+# EPEL support (for cmake28 & yasm)
+yum -y install https://archives.fedoraproject.org/pub/archive/epel/6/x86_64/epel-release-6-8.noarch.rpm curl
+sed -i 's/^mirrorlist/#mirrorlist/g' /etc/yum.repos.d/*.repo
+sed -i 's;^#.*baseurl=http://download.fedoraproject.org/pub;baseurl=https://archives.fedoraproject.org/pub/archive;g' /etc/yum.repos.d/*.repo
+yum -y install centos-release-scl
+sed -i 's/^mirrorlist/#mirrorlist/g' /etc/yum.repos.d/*.repo
+sed -i 's;^#.*baseurl=http://mirror;baseurl=https://vault;g' /etc/yum.repos.d/*.repo
 
 # Dependencies for compiling Python that we want to remove from
 # the final image after compiling Python
