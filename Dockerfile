@@ -1,12 +1,19 @@
 # Get from: https://github.com/docker-library/python/blob/master/3.9/alpine3.12/Dockerfile
-ARG PYTHON_VERSION=3.9.0
-ARG PYTHON_PIP_VERSION=20.3.1
-ARG PYTHON_GET_PIP_URL=https://github.com/pypa/get-pip/raw/91630a4867b1f93ba0a12aa81d0ec4ecc1e7eeb9/get-pip.py
-ARG PYTHON_GET_PIP_SHA256=d48ae68f297cac54db17e4107b800faae0e5210131f9f386c30c0166bf8d81b7
-ARG OPENSSL_VERSION=1.1.1h
-ARG OPENSSL_SHA512=da50fd99325841ed7a4367d9251c771ce505a443a73b327d8a46b2c6a7d2ea99e43551a164efc86f8743b22c2bdb0020bf24a9cbd445e9d68868b2dc1d34033a
+ARG PYTHON_VERSION=3.9.2
+ARG PYTHON_PIP_VERSION=21.0.1
+ARG PYTHON_GET_PIP_URL=https://github.com/pypa/get-pip/raw/b60e2320d9e8d02348525bd74e871e466afdf77c/get-pip.py
+ARG PYTHON_GET_PIP_SHA256=c3b81e5d06371e135fb3156dc7d8fd6270735088428c4a9a5ec1f342e2024565
+ARG PYINSTALLER_VERSION=4.2
+ARG OPENSSL_VERSION=1.1.1j
+ARG OPENSSL_SHA256=aaf2fcb575cdf6491b98ab4829abf78a3dec8402b8b81efc8f23c00d443981bf
 ARG GPG_KEY=E3FF2839C048B25C084DEBE9B26995E310250568
 ARG DUMBINIT_VERSION=1.2.3
+ARG BASEIMAGE=amd64/centos:7
+ARG POLICY=manylinux2014
+ARG PLATFORM=x86_64
+ARG DEVTOOLSET_ROOTPATH="/opt/rh/devtoolset-9/root"
+ARG LD_LIBRARY_PATH_ARG="${DEVTOOLSET_ROOTPATH}/usr/lib64:${DEVTOOLSET_ROOTPATH}/usr/lib:${DEVTOOLSET_ROOTPATH}/usr/lib64/dyninst:${DEVTOOLSET_ROOTPATH}/usr/lib/dyninst:/usr/local/lib64:/usr/local/lib"
+ARG PREPEND_PATH="${DEVTOOLSET_ROOTPATH}/usr/bin:"
 
 # Taken from https://github.com/mstorsjo/msvc-wine/
 FROM ubuntu:20.04 AS vcbuilder
@@ -33,7 +40,7 @@ ARG PYTHON_PIP_VERSION
 ARG PYTHON_GET_PIP_URL
 ARG PYTHON_GET_PIP_SHA256
 ARG OPENSSL_VERSION
-ARG OPENSSL_SHA512
+ARG OPENSSL_SHA256
 ARG GPG_KEY
 
 ENV LANG C.UTF-8
@@ -93,10 +100,10 @@ RUN set -ex \
 	&& apk del --no-network .fetch-deps
 
 ENV OPENSSL_VERSION $OPENSSL_VERSION
-ENV OPENSSL_SHA512 $OPENSSL_SHA512
+ENV OPENSSL_SHA256 $OPENSSL_SHA256
 RUN wget -O openssl-${OPENSSL_VERSION}.tar.gz https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz \
-    && echo "$OPENSSL_SHA512  openssl-${OPENSSL_VERSION}.tar.gz" > sums \
-    && sha512sum -c sums \
+    && echo "$OPENSSL_SHA256  openssl-${OPENSSL_VERSION}.tar.gz" > sums \
+    && sha256sum -c sums \
     && tar xzf openssl-${OPENSSL_VERSION}.tar.gz \
     && cd openssl-${OPENSSL_VERSION} \
     && perl ./Configure linux-x86_64 --prefix=/usr/local/ \
@@ -182,8 +189,11 @@ RUN set -ex; \
 # Heavily based on https://github.com/six8/pyinstaller-alpine/
 FROM alpine:3.7 AS alpine_pyinstaller
 
+ARG PYINSTALLER_VERSION
+ENV PYINSTALLER_VERSION $PYINSTALLER_VERSION
 ENV PATH /usr/local/bin:$PATH
 ENV LANG C.UTF-8
+ENV HOME /root
 
 COPY --from=python_builder /usr/local /usr/local
 
@@ -220,24 +230,172 @@ RUN set -eux; \
     && pip install certifi pycrypto \
     && rm -rf /var/cache/apk/*
 
-RUN INFO="$(wget -qO - "https://api.github.com/repos/pyinstaller/pyinstaller/releases/latest")" \
-    && wget -qO pyinstaller.tar.gz https://github.com/pyinstaller/pyinstaller/releases/download/$(echo "$INFO"|grep '"tag_name"'|cut -d'"' -f4)/$(echo "$INFO"|grep '"name"'|grep '.tar.gz"'|cut -d'"' -f4) \
+RUN wget -qO pyinstaller.tar.gz https://github.com/pyinstaller/pyinstaller/releases/download/v${PYINSTALLER_VERSION}/pyinstaller-${PYINSTALLER_VERSION}.tar.gz \
     && tar -C /tmp -xzf pyinstaller.tar.gz \
     && cd /tmp/pyinstaller*/bootloader \
     && CFLAGS="-Wno-stringop-overflow -Wno-stringop-truncation" python ./waf configure --no-lsb all \
     && pip install .. \
     && rm -Rf /tmp/pyinstaller \
-    && rm -Rf /root/.cache
+    && rm -Rf /root/.cache \
+    && rm -f pyinstaller.tar.gz
+
+RUN wget -qO - https://sh.rustup.rs | sh -s -- -y
 
 COPY alpine-bin/ /usr/local/bin
 RUN chmod +x /usr/local/bin/*
 
 
-FROM quay.io/pypa/manylinux2010_x86_64
+# Based on https://github.com/pypa/manylinux/blob/master/docker/Dockerfile
+# default to latest supported policy, x86_64
+FROM $BASEIMAGE AS runtime_base
+ARG POLICY
+ARG PLATFORM
+ARG DEVTOOLSET_ROOTPATH
+ARG LD_LIBRARY_PATH_ARG
+ARG PREPEND_PATH
 LABEL maintainer="Barracuda Networks"
 
+ENV AUDITWHEEL_POLICY=${POLICY} AUDITWHEEL_ARCH=${PLATFORM} AUDITWHEEL_PLAT=${POLICY}_${PLATFORM}
+ENV LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 LANGUAGE=en_US.UTF-8
+ENV DEVTOOLSET_ROOTPATH=${DEVTOOLSET_ROOTPATH}
+ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH_ARG}
+ENV PATH=${PREPEND_PATH}${PATH}
+ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
+
+# first copy the fixup mirrors script, keep the script around
+COPY manylinux/docker/build_scripts/fixup-mirrors.sh /usr/local/sbin/fixup-mirrors
+
+# setup entrypoint, this will wrap commands with `linux32` with i686 images
+COPY manylinux/docker/build_scripts/install-entrypoint.sh manylinux/docker/build_scripts/update-system-packages.sh /build_scripts/
+RUN bash /build_scripts/install-entrypoint.sh && rm -rf /build_scripts
+COPY manylinux/docker/manylinux-entrypoint /usr/local/bin/manylinux-entrypoint
+ENTRYPOINT ["manylinux-entrypoint"]
+
+COPY manylinux/docker/build_scripts/install-runtime-packages.sh manylinux/docker/build_scripts/update-system-packages.sh /build_scripts/
+RUN manylinux-entrypoint /build_scripts/install-runtime-packages.sh && rm -rf /build_scripts/
+
+COPY manylinux/docker/build_scripts/build_utils.sh /build_scripts/
+
+COPY manylinux/docker/build_scripts/install-autoconf.sh /build_scripts/
+RUN export AUTOCONF_ROOT=autoconf-2.70 && \
+    export AUTOCONF_HASH=f05f410fda74323ada4bdc4610db37f8dbd556602ba65bc843edb4d4d4a1b2b7 && \
+    export AUTOCONF_DOWNLOAD_URL=http://ftp.gnu.org/gnu/autoconf && \
+    manylinux-entrypoint /build_scripts/install-autoconf.sh
+
+COPY manylinux/docker/build_scripts/install-automake.sh /build_scripts/
+RUN export AUTOMAKE_ROOT=automake-1.16.3 && \
+    export AUTOMAKE_HASH=ce010788b51f64511a1e9bb2a1ec626037c6d0e7ede32c1c103611b9d3cba65f && \
+    export AUTOMAKE_DOWNLOAD_URL=http://ftp.gnu.org/gnu/automake && \
+    manylinux-entrypoint /build_scripts/install-automake.sh
+
+COPY manylinux/docker/build_scripts/install-libtool.sh /build_scripts/
+RUN export LIBTOOL_ROOT=libtool-2.4.6 && \
+    export LIBTOOL_HASH=e3bd4d5d3d025a36c21dd6af7ea818a2afcd4dfc1ea5a17b39d7854bcd0c06e3 && \
+    export LIBTOOL_DOWNLOAD_URL=http://ftp.gnu.org/gnu/libtool && \
+    manylinux-entrypoint /build_scripts/install-libtool.sh
+
+COPY manylinux/docker/build_scripts/install-patchelf.sh /build_scripts/
+RUN export PATCHELF_VERSION=0.12 && \
+    export PATCHELF_HASH=3dca33fb862213b3541350e1da262249959595903f559eae0fbc68966e9c3f56 && \
+    export PATCHELF_DOWNLOAD_URL=https://github.com/NixOS/patchelf/archive && \
+    manylinux-entrypoint /build_scripts/install-patchelf.sh
+
+COPY manylinux/docker/build_scripts/install-libxcrypt.sh /build_scripts/
+RUN export LIBXCRYPT_VERSION=4.4.17 && \
+    export LIBXCRYPT_HASH=7665168d0409574a03f7b484682e68334764c29c21ca5df438955a381384ca07 && \
+    export LIBXCRYPT_DOWNLOAD_URL=https://github.com/besser82/libxcrypt/archive && \
+    manylinux-entrypoint /build_scripts/install-libxcrypt.sh
+
+
+FROM runtime_base AS build_base
+COPY manylinux/docker/build_scripts/install-build-packages.sh /build_scripts/
+RUN manylinux-entrypoint /build_scripts/install-build-packages.sh
+
+
+FROM build_base AS build_git
+COPY manylinux/docker/build_scripts/build-git.sh /build_scripts/
+RUN export GIT_ROOT=git-2.30.0 && \
+    export GIT_HASH=d24c4fa2a658318c2e66e25ab67cc30038a35696d2d39e6b12ceccf024de1e5e && \
+    export GIT_DOWNLOAD_URL=https://www.kernel.org/pub/software/scm/git && \
+    manylinux-entrypoint /build_scripts/build-git.sh
+
+
+FROM build_base AS build_cmake
+COPY manylinux/docker/build_scripts/build-cmake.sh /build_scripts/
+RUN export CMAKE_VERSION=3.18.3 && \
+    export CMAKE_HASH=2c89f4e30af4914fd6fb5d00f863629812ada848eee4e2d29ec7e456d7fa32e5 && \
+    export CMAKE_DOWNLOAD_URL=https://github.com/Kitware/CMake/releases/download && \
+    manylinux-entrypoint /build_scripts/build-cmake.sh
+
+
+FROM build_base AS build_swig
+COPY manylinux/docker/build_scripts/build-swig.sh /build_scripts/
+RUN export SWIG_ROOT=swig-4.0.2 && \
+    export SWIG_HASH=d53be9730d8d58a16bf0cbd1f8ac0c0c3e1090573168bfa151b01eb47fa906fc && \
+    export SWIG_DOWNLOAD_URL=https://sourceforge.net/projects/swig/files/swig/${SWIG_ROOT} && \
+    export PCRE_ROOT=pcre-8.44 && \
+    export PCRE_HASH=aecafd4af3bd0f3935721af77b889d9024b2e01d96b58471bd91a3063fb47728 && \
+    export PCRE_DOWNLOAD_URL=https://ftp.pcre.org/pub/pcre && \
+    manylinux-entrypoint /build_scripts/build-swig.sh
+
+
+FROM build_base AS build_cpython
+COPY manylinux/docker/build_scripts/build-sqlite3.sh /build_scripts/
+RUN export SQLITE_AUTOCONF_ROOT=sqlite-autoconf-3340000 && \
+    export SQLITE_AUTOCONF_HASH=bf6db7fae37d51754737747aaaf413b4d6b3b5fbacd52bdb2d0d6e5b2edd9aee && \
+    export SQLITE_AUTOCONF_DOWNLOAD_URL=https://www.sqlite.org/2020 && \
+    manylinux-entrypoint /build_scripts/build-sqlite3.sh
+
+COPY manylinux/docker/build_scripts/build-openssl.sh /build_scripts/
+RUN export OPENSSL_ROOT=openssl-1.1.1j && \
+    export OPENSSL_HASH=aaf2fcb575cdf6491b98ab4829abf78a3dec8402b8b81efc8f23c00d443981bf && \
+    export OPENSSL_DOWNLOAD_URL=https://www.openssl.org/source && \
+    manylinux-entrypoint /build_scripts/build-openssl.sh
+
+COPY manylinux/docker/build_scripts/build-cpython.sh /build_scripts/
+FROM build_cpython AS build_cpython39
+COPY manylinux/docker/build_scripts/ambv-pubkey.txt /build_scripts/ambv-pubkey.txt
+RUN manylinux-entrypoint gpg --import /build_scripts/ambv-pubkey.txt
+# Change build script to use shared libraries
+RUN sed -ie 's/--disable-shared/--enable-ipv6 --enable-shared --enable-optimizations --with-lto/g' /build_scripts/build-cpython.sh
+ARG PYTHON_VERSION
+RUN manylinux-entrypoint /build_scripts/build-cpython.sh $PYTHON_VERSION
+
+FROM build_cpython AS all_cpython
+COPY --from=build_cpython39 /opt/_internal /opt/_internal/
+RUN hardlink -cv /opt/_internal
+
+FROM build_base AS build_wine
+COPY build-wine.sh /build_scripts/
+RUN export WINE_ROOT=wine-5.0.2 && \
+    export WINE_HASH=c2c284f470874b35228327c3972bc29c3a9d8d98abd71dbf81c288b8642becbc && \
+    export WINE_DOWNLOAD_URL=https://dl.winehq.org/wine/source/5.0 && \
+    manylinux-entrypoint /build_scripts/build-wine.sh
+
+FROM build_wine AS wine_python
+ARG PYTHON_VERSION
+ARG PYINSTALLER_VERSION
+ENV PYTHON_VERSION $PYTHON_VERSION
+ENV PYINSTALLER_VERSION $PYINSTALLER_VERSION
+COPY install-python-wine.sh /build_scripts/
+RUN manylinux-entrypoint /build_scripts/install-python-wine.sh
+
+
+FROM runtime_base
 ARG DUMBINIT_VERSION
 ARG PYTHON_VERSION
+ARG PYINSTALLER_VERSION
+
+COPY --from=build_git /manylinux-rootfs /
+COPY --from=build_cmake /manylinux-rootfs /
+COPY --from=build_swig /manylinux-rootfs /
+COPY --from=build_cpython /manylinux-rootfs /
+COPY --from=wine_python /manylinux-rootfs /
+COPY --from=all_cpython /opt/_internal /opt/_internal/
+
+ENV LD_LIBRARY_PATH=/opt/_internal/cpython-$PYTHON_VERSION/lib:$LD_LIBRARY_PATH
+ENV PATH=/opt/_internal/cpython-$PYTHON_VERSION/bin:$PATH
+ENV SSL_CERT_FILE=/opt/_internal/certs.pem
 
 ENV WINEARCH win64
 ENV WINEDEBUG fixme-all
@@ -246,28 +404,36 @@ ENV WINEPREFIX /wine
 ENV W_DRIVE_C=/wine/drive_c
 ENV W_WINDIR_UNIX="$W_DRIVE_C/windows"
 ENV W_SYSTEM64_DLLS="$W_WINDIR_UNIX/system32"
-ENV W_TMP="$W_DRIVE_C/windows/temp/_$0"
-
+ENV W_TMP="$W_DRIVE_C/windows/temp/_"
+ENV HOME=/root
 ENV PATH $PATH:/Library/Frameworks/Mono.framework/Commands
-ENV SSL_CERT_FILE=/opt/_internal/certs.pem
-ENV PYTHON_VERSION=$PYTHON_VERSION
+ENV PYTHON_VERSION $PYTHON_VERSION
+ENV PYINSTALLER_VERSION $PYINSTALLER_VERSION
 
-# Centos 6 is EOL and is no longer available from the usual mirrors, so switch
-# to https://vault.centos.org
-RUN sed -i 's/enabled=1/enabled=0/g' /etc/yum/pluginconf.d/fastestmirror.conf && \
-    sed -i 's/^mirrorlist/#mirrorlist/g' /etc/yum.repos.d/*.repo && \
-    sed -i 's;^#baseurl=http://mirror;baseurl=https://vault;g' /etc/yum.repos.d/*.repo
+COPY manylinux/docker/build_scripts/finalize.sh manylinux/docker/build_scripts/update-system-packages.sh manylinux/docker/build_scripts/python-tag-abi-tag.py manylinux/docker/build_scripts/requirements.txt manylinux/docker/build_scripts/requirements-tools.txt /build_scripts/
+RUN sed -ie s/cp37-cp37m/cp39-cp39/g /build_scripts/finalize.sh
+RUN manylinux-entrypoint /build_scripts/finalize.sh && rm -rf /build_scripts
 
-COPY build_scripts/ /build_scripts/
-RUN bash /build_scripts/build.sh && rm -fr /build_scripts
+# Install perl rename and gnutls for wine
+RUN yum -y install perl-ExtUtils-MakeMaker gnutls
+RUN curl -fsSLo - "https://search.cpan.org/CPAN/authors/id/R/RM/RMBARKER/File-Rename-1.10.tar.gz" | tar -xz && ( cd "File-Rename-1.10"; perl "Makefile.PL"; make && make install )
+
+RUN rpmkeys --import "http://ha.pool.sks-keyservers.net/pks/lookup?op=get&search=0x3fa7e0328081bff6a14da29aa6a19b38d3d831ef"
+RUN curl https://download.mono-project.com/repo/centos7-stable.repo | tee /etc/yum.repos.d/mono-centos7-stable.repo
+RUN yum -y install mono-devel && yum -y clean all
 
 COPY msvc/ /msvc/
 COPY --from=vcbuilder /opt/msvc /opt/msvc
 RUN bash /msvc/install.sh /opt/msvc && rm -fr /msvc
 
 COPY hooks/ /hooks/
-
 COPY --from=alpine_pyinstaller / /alpine/
+
+# update pip/certifi
+RUN pip --no-cache-dir install -U pip certifi || true
+
+# install pyinstaller
+RUN pip --no-cache-dir install pyinstaller==$PYINSTALLER_VERSION
 
 WORKDIR /src
 COPY entrypoint.sh /entrypoint.sh

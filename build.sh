@@ -50,9 +50,6 @@ if [ -n "$DOCKER_REGISTRY_USER" ]; then
     docker pull "$DOCKER_TAG" || true
 fi
 
-# Get latest base images for manylinux
-docker pull quay.io/pypa/manylinux2010_x86_64
-
 echo "Build Image"
 docker build --rm $NO_CACHE -t "$DOCKER_TAG" .
 
