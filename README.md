@@ -1,19 +1,17 @@
 # Manylinux/Windows Pyinstaller Docker Image
 
-This container is based on the official [Python Manylinux](https://github.com/pypa/manylinux/) docker image, which sets an entire build environment based on a very old linux version in a way such that when you build a python binary module on it, it is assured to work on any modern (glibc based) Linux.
+This container is based on the official [Python Manylinux](https://github.com/pypa/manylinux/) manylinux2014 docker image, which sets an entire build environment based on a very old linux version in a way such that when you build a python binary module on it, it is assured to work on any modern (glibc based) Linux and also Alpine (musl libc based) Linux.
 
 We had to rebuild Python inside this container using shared libraries (only latest Python 3 where PyInstaller works is supported)
-to be able to use it with the [Pyinstaller project](https://pyinstaller.org) and on top of that, the image also has a working Wine 4 installed (Wine is a Microsoft Windows emulator) with Python for windows, pip, etc. added to be able to create Pyinstaller Windows executables too. The idea for building Windows binaries using Wine was taken from [here](https://github.com/cdrx/docker-pyinstaller), but improved, based on manylinux and made polyglot, ie. the same container does both Linux and Windows.
+to be able to use it with the [Pyinstaller project](https://pyinstaller.org) and on top of that, the image also has a working Wine 5 installed (Wine is a Microsoft Windows emulator) with Python for windows, pip, etc. added to be able to create Pyinstaller Windows executables too. The idea for building Windows binaries using Wine was taken from [here](https://github.com/cdrx/docker-pyinstaller), but improved, based on manylinux and made polyglot, ie. the same container does both Linux and Windows.
 
 The goal of this project then is to be able to produce single-file binaries for Linux x68-64 that only depend on a very basic (read old) libc and for x86-64 Microsoft Windows (Windows 7 and up).
-
-There is also support for Alpine Linux now as part of the same polyglot, tested on Alpine 3.3 and up.
 
 # Use mode
 
 To build the binary, you need to mount your source code folder into the container in the `/src` folder and any extra command line argument will be sent to Pyinstaller.
 
-The resulting binaries will be located in `dist/linux` and `dist/windows` respectively, and a `.spec` file as used by Pyinstaller will be created. Also, you can provide such `.spec` file to Pyinstaller instead of a python module and it will follow the instructions from it. Please refer to the [Pyinstaller documentation](https://pyinstaller.readthedocs.io/en/stable/spec-files.html) for more information.
+The resulting binaries will be located in `dist/linux`, `dist/alpine`, and `dist/windows` respectively, and a `.spec` file as used by Pyinstaller will be created. Also, you can provide such `.spec` file to Pyinstaller instead of a python module and it will follow the instructions from it. Please refer to the [Pyinstaller documentation](https://pyinstaller.readthedocs.io/en/stable/spec-files.html) for more information.
 
 If there is a `requirements.txt` file present at the root of the source code folder it will be installed using `pip install` before running Pyinstaller.
 

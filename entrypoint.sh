@@ -3,17 +3,12 @@
 # Stop at any error, show all commands
 set -ex
 
-PY_VERSION=$(cat /py_version)
-export LD_LIBRARY_PATH=$PY_VERSION/lib:$LD_LIBRARY_PATH
-export PATH=$PY_VERSION/bin:$PATH
-
 source /opt/msvc/bin/x64/msvcenv.sh
 export DISTUTILS_USE_SDK=1
 
 REPRO_BUILD=${REPRO_BUILD:-yes}
 if [[ "$REPRO_BUILD" == "yes" ]]; then
-    PYTHONHASHSEED=1
-    export PYTHONHASHSEED
+    export PYTHONHASHSEED=1
 fi
 export PYTHONDONTWRITEBYTECODE=1
 

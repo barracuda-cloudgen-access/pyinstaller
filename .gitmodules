@@ -1,0 +1,3 @@
+[submodule "manylinux"]
+	path = manylinux
+	url = https://github.com/pypa/manylinux.git

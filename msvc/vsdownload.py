@@ -18,14 +18,15 @@ import argparse
 import functools
 import hashlib
 import os
+import multiprocessing.pool
 import simplejson
 import six
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
 import zipfile
-import time
 
 def getArgsParser():
     parser = argparse.ArgumentParser(description = "Download and install Visual Studio")
@@ -60,6 +61,7 @@ def getArgsParser():
     parser.add_argument("--msvc-16.1", const=True, action="store_const", help="Install specifically the MSVC 16.1 toolchain")
     parser.add_argument("--msvc-16.2", const=True, action="store_const", help="Install specifically the MSVC 16.2 toolchain")
     parser.add_argument("--msvc-16.3", const=True, action="store_const", help="Install specifically the MSVC 16.3 toolchain")
+    parser.add_argument("--msvc-16.9", const=True, action="store_const", help="Install specifically the MSVC 16.9 toolchain")
     return parser
 
 def setPackageSelectionMSVC16(args, packages, userversion, sdk, toolversion, defaultPackages):
@@ -97,6 +99,8 @@ def setPackageSelection(args, packages):
         setPackageSelectionMSVC16(args, packages, "16.2", "10.0.18362", "14.22", defaultPackages)
     if getattr(args, "msvc_16.3"):
         setPackageSelectionMSVC16(args, packages, "16.3", "10.0.18362", "14.23", defaultPackages)
+    if getattr(args, "msvc_16.9"):
+        setPackageSelectionMSVC16(args, packages, "16.9", "10.0.19041", "14.28", defaultPackages)
 
     if getattr(args, "msvc_15.4"):
         setPackageSelectionMSVC15(args, packages, "15.4", "10.0.16299", "14.11", defaultPackages)
@@ -147,7 +151,7 @@ def getManifest(args):
             else:
                 print("Old saved manifest in \"%s\" is still current" % (filename))
         else:
-            f = open(filename, "w")
+            f = open(filename, "wb")
             f.write(manifestdata)
             f.close()
             print("Saved installer manifest to \"%s\"" % (filename))
@@ -371,9 +375,9 @@ def getPayloadName(payload):
     return name
 
 def downloadPackages(selected, cache, allowHashMismatch = False):
+    pool = multiprocessing.Pool(5)
+    tasks = []
     makedirs(cache)
-
-    downloaded = 0
     for p in selected:
         if not "payloads" in p:
             continue
@@ -383,6 +387,17 @@ def downloadPackages(selected, cache, allowHashMismatch = False):
             name = getPayloadName(payload)
             destname = os.path.join(dir, name)
             fileid = os.path.join(getPackageKey(p), name)
+            args = (payload, destname, fileid, allowHashMismatch)
+            tasks.append(pool.apply_async(_downloadPayload, args))
+
+    downloaded = sum(task.get() for task in tasks)
+    pool.close()
+    print("Downloaded %s in total" % (formatSize(downloaded)))
+
+def _downloadPayload(payload, destname, fileid, allowHashMismatch):
+    attempts = 5
+    for attempt in range(attempts):
+        try:
             if os.access(destname, os.F_OK):
                 if "sha256" in payload:
                     if sha256File(destname).lower() != payload["sha256"].lower():
@@ -390,27 +405,25 @@ def downloadPackages(selected, cache, allowHashMismatch = False):
                         os.remove(destname)
                     else:
                         print("Using existing file %s" % (fileid))
-                        continue
+                        return 0
                 else:
-                    continue
+                    return 0
             size = 0
             if "size" in payload:
                 size = payload["size"]
             print("Downloading %s (%s)" % (fileid, formatSize(size)))
-            try:
-                six.moves.urllib.request.urlretrieve(payload["url"], destname)
-            except IOError:
-                time.sleep(5)
-                six.moves.urllib.request.urlretrieve(payload["url"], destname)
-            downloaded = downloaded + size
+            six.moves.urllib.request.urlretrieve(payload["url"], destname)
             if "sha256" in payload:
                 if sha256File(destname).lower() != payload["sha256"].lower():
                     if allowHashMismatch:
                         print("WARNING: Incorrect hash for downloaded file %s" % (fileid))
                     else:
-                        print("Incorrect hash for downloaded file %s, aborting" % (fileid))
-                        sys.exit(1)
-    print("Downloaded %s in total" % (formatSize(downloaded)))
+                        raise Exception("Incorrect hash for downloaded file %s, aborting" % fileid)
+            return size
+        except Exception as e:
+            if attempt == attempts - 1:
+                raise
+            print("%s: %s" % (type(e).__name__, e))
 
 def mergeTrees(src, dest):
     if not os.path.isdir(src):
@@ -471,7 +484,7 @@ def unpackWin10SDK(src, payloads, dest):
             print("Extracting " + name)
             srcfile = os.path.join(src, name)
             log = open(os.path.join(dest, "WinSDK-" + getPayloadName(payload) + "-listing.txt"), "w")
-            subprocess.call(["msiextract", "-C", dest, srcfile], stdout=log)
+            subprocess.check_call(["msiextract", "-C", dest, srcfile], stdout=log)
             log.close()
 
 def extractPackages(selected, cache, dest):
@@ -506,6 +519,8 @@ if __name__ == "__main__":
     parser = getArgsParser()
     args = parser.parse_args()
     lowercaseIgnores(args)
+
+    socket.setdefaulttimeout(15)
 
     packages = getPackages(getManifest(args))
 

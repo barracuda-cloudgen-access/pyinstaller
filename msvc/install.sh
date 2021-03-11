@@ -44,8 +44,8 @@ $ORIG/fixinclude kits/10/include/$SDKVER/um
 $ORIG/fixinclude kits/10/include/$SDKVER/shared
 $ORIG/lowercase kits/10/lib/$SDKVER/um/x64
 
-SDKVER=$(basename $(echo kits/10/include/* | awk '{print $NF}'))
-MSVCVER=$(basename $(echo vc/tools/msvc/* | awk '{print $1}'))
+SDKVER=$(basename $(echo kits/10/include/* | sort -n | awk '{print $NF}'))
+MSVCVER=$(basename $(echo vc/tools/msvc/* | sort -n | awk '{print $NF}'))
 BASE_WIN=z:$(echo $DEST | sed 's,/,\\\\\\\\,g')
 cat $ORIG/wrappers/msvcenv.sh | sed 's/MSVCVER=.*/MSVCVER='$MSVCVER/ | sed 's/SDKVER=.*/SDKVER='$SDKVER/ | sed 's/BASE=.*/BASE='"$BASE_WIN"/ | sed 's,BASE_UNIX=.*,BASE_UNIX='$DEST, > msvcenv.sh
 mkdir -p bin/x64

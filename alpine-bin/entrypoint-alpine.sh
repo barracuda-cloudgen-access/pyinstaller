@@ -3,7 +3,7 @@
 # Stop at any error, show all commands
 set -ex
 
-export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH=/root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 unset LD_LIBRARY_PATH
 
 WORKDIR=${SRCDIR:-/src}
