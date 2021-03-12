@@ -361,10 +361,6 @@ RUN sed -ie 's/--disable-shared/--enable-ipv6 --enable-shared --enable-optimizat
 ARG PYTHON_VERSION
 RUN manylinux-entrypoint /build_scripts/build-cpython.sh $PYTHON_VERSION
 
-FROM build_cpython AS all_cpython
-COPY --from=build_cpython39 /opt/_internal /opt/_internal/
-RUN hardlink -cv /opt/_internal
-
 FROM build_base AS build_wine
 COPY build-wine.sh /build_scripts/
 RUN export WINE_ROOT=wine-5.0.2 && \
@@ -391,7 +387,7 @@ COPY --from=build_cmake /manylinux-rootfs /
 COPY --from=build_swig /manylinux-rootfs /
 COPY --from=build_cpython /manylinux-rootfs /
 COPY --from=wine_python /manylinux-rootfs /
-COPY --from=all_cpython /opt/_internal /opt/_internal/
+COPY --from=build_cpython39 /opt/_internal /opt/_internal/
 
 ENV LD_LIBRARY_PATH=/opt/_internal/cpython-$PYTHON_VERSION/lib:$LD_LIBRARY_PATH
 ENV PATH=/opt/_internal/cpython-$PYTHON_VERSION/bin:$PATH
@@ -411,7 +407,8 @@ ENV PYTHON_VERSION $PYTHON_VERSION
 ENV PYINSTALLER_VERSION $PYINSTALLER_VERSION
 
 COPY manylinux/docker/build_scripts/finalize.sh manylinux/docker/build_scripts/update-system-packages.sh manylinux/docker/build_scripts/python-tag-abi-tag.py manylinux/docker/build_scripts/requirements.txt manylinux/docker/build_scripts/requirements-tools.txt /build_scripts/
-RUN sed -ie s/cp37-cp37m/cp39-cp39/g /build_scripts/finalize.sh
+RUN sed -ie 's/cp37-cp37m/cp39-cp39/g' /build_scripts/finalize.sh
+RUN sed -ie 's/hardlink -cv \/opt\/_internal//g' /build_scripts/finalize.sh
 RUN manylinux-entrypoint /build_scripts/finalize.sh && rm -rf /build_scripts
 
 # Install perl rename and gnutls for wine
