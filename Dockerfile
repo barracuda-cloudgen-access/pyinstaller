@@ -55,17 +55,19 @@ RUN set -ex \
 		tar \
 		xz
 
+COPY ${GPG_KEY}.asc /
 RUN set -ex \
 	&& wget -O python.tar.xz "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz" \
 	&& wget -O python.tar.xz.asc "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz.asc" \
 	&& export GNUPGHOME="$(mktemp -d)" \
-	&& gpg --batch --keyserver ipv4.pool.sks-keyservers.net --recv-keys "$GPG_KEY" \
+	&& gpg --batch --import "/${GPG_KEY}.asc" \
 	&& gpg --batch --verify python.tar.xz.asc python.tar.xz \
 	&& { command -v gpgconf > /dev/null && gpgconf --kill all || :; } \
 	&& rm -rf "$GNUPGHOME" python.tar.xz.asc \
 	&& mkdir -p /usr/src/python \
 	&& tar -xJC /usr/src/python --strip-components=1 -f python.tar.xz \
-	&& rm python.tar.xz
+	&& rm python.tar.xz \
+    && rm "/${GPG_KEY}.asc"
 
 RUN set -ex \
 	&& apk add --no-cache --virtual .build-deps  \
@@ -415,7 +417,8 @@ RUN manylinux-entrypoint /build_scripts/finalize.sh && rm -rf /build_scripts
 RUN yum -y install perl-ExtUtils-MakeMaker gnutls
 RUN curl -fsSLo - "https://search.cpan.org/CPAN/authors/id/R/RM/RMBARKER/File-Rename-1.10.tar.gz" | tar -xz && ( cd "File-Rename-1.10"; perl "Makefile.PL"; make && make install )
 
-RUN rpmkeys --import "http://ipv4.pool.sks-keyservers.net/pks/lookup?op=get&search=0x3fa7e0328081bff6a14da29aa6a19b38d3d831ef"
+COPY 3fa7e0328081bff6a14da29aa6a19b38d3d831ef.asc /
+RUN rpmkeys --import "/3fa7e0328081bff6a14da29aa6a19b38d3d831ef.asc" && rm -f /3fa7e0328081bff6a14da29aa6a19b38d3d831ef.asc
 RUN curl https://download.mono-project.com/repo/centos7-stable.repo | tee /etc/yum.repos.d/mono-centos7-stable.repo
 RUN yum -y install mono-devel && yum -y clean all
 
