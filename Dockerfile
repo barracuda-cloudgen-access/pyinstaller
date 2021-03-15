@@ -7,7 +7,7 @@ ARG PYINSTALLER_VERSION=4.2
 ARG OPENSSL_VERSION=1.1.1j
 ARG OPENSSL_SHA256=aaf2fcb575cdf6491b98ab4829abf78a3dec8402b8b81efc8f23c00d443981bf
 ARG GPG_KEY=E3FF2839C048B25C084DEBE9B26995E310250568
-ARG DUMBINIT_VERSION=1.2.3
+ARG DUMBINIT_VERSION=1.2.5
 ARG BASEIMAGE=amd64/centos:7
 ARG POLICY=manylinux2014
 ARG PLATFORM=x86_64
@@ -234,12 +234,12 @@ RUN set -eux; \
 
 RUN wget -qO pyinstaller.tar.gz https://github.com/pyinstaller/pyinstaller/releases/download/v${PYINSTALLER_VERSION}/pyinstaller-${PYINSTALLER_VERSION}.tar.gz \
     && tar -C /tmp -xzf pyinstaller.tar.gz \
+    && rm -f pyinstaller.tar.gz \
     && cd /tmp/pyinstaller*/bootloader \
     && CFLAGS="-Wno-stringop-overflow -Wno-stringop-truncation" python ./waf configure --no-lsb all \
     && pip install .. \
     && rm -Rf /tmp/pyinstaller \
-    && rm -Rf /root/.cache \
-    && rm -f pyinstaller.tar.gz
+    && rm -Rf /root/.cache
 
 RUN wget -qO - https://sh.rustup.rs | sh -s -- -y
 
@@ -415,12 +415,12 @@ RUN manylinux-entrypoint /build_scripts/finalize.sh && rm -rf /build_scripts
 
 # Install perl rename and gnutls for wine
 RUN yum -y install perl-ExtUtils-MakeMaker gnutls
-RUN curl -fsSLo - "https://search.cpan.org/CPAN/authors/id/R/RM/RMBARKER/File-Rename-1.10.tar.gz" | tar -xz && ( cd "File-Rename-1.10"; perl "Makefile.PL"; make && make install )
+RUN curl -fsSLo - "https://search.cpan.org/CPAN/authors/id/R/RM/RMBARKER/File-Rename-1.10.tar.gz" | tar -xz && ( cd "File-Rename-1.10"; perl "Makefile.PL"; make && make install; cd ..; rm -fr "File-Rename-1.10" )
 
 COPY 3fa7e0328081bff6a14da29aa6a19b38d3d831ef.asc /
 RUN rpmkeys --import "/3fa7e0328081bff6a14da29aa6a19b38d3d831ef.asc" && rm -f /3fa7e0328081bff6a14da29aa6a19b38d3d831ef.asc
 RUN curl https://download.mono-project.com/repo/centos7-stable.repo | tee /etc/yum.repos.d/mono-centos7-stable.repo
-RUN yum -y install mono-devel && yum -y clean all
+RUN yum -y install mono-devel && yum -y clean all && rm -f /anaconda-post.log
 
 COPY msvc/ /msvc/
 COPY --from=vcbuilder /opt/msvc /opt/msvc
