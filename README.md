@@ -59,6 +59,7 @@ Some behavior can be changed by changing the environment of the container.
 |PYPI_URL|https://pypi.python.org/|URL for the pypi package repositories, useful if you're using internal package caches.|
 |PYPI_INDEX_URL|https://pypi.python.org/simple|URL for the pypi index.|
 |SHELL_CMDS||Runs the given shell commands before calling pyinstaller. Useful if you need to change the build environment in some way before building the binaries. You can also use a `.spec` file for that, since it is a Python script afterall.|
+|ALPINE_SHELL_CMDS||Runs the given shell commands before calling pyinstaller. Useful if you need to change the build environment in some way before building the binaries. You can also use a `.spec` file for that, since it is a Python script afterall.|
 |CODESIGN_KEYFILE||If present, it must be a password-protected PFX keyfile with te Authenticode code signing certificate to use to sign the generated Windows executables. Reminder: It must be reachable from the container.|
 |CODESIGN_PASS||Password for the CODESIGN_KEYFILE.|
 |CODESIGN_EXTRACERT||Optional extra file in PEM format with the certificate chain to append to the signature. Useful to make certain tools (like signtool.exe) verify OK.|

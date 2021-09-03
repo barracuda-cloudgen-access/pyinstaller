@@ -15,14 +15,14 @@ echo "index = $PYPI_URL" >> /root/pip/pip.conf
 echo "index-url = $PYPI_INDEX_URL" >> /root/pip/pip.conf
 echo "trusted-host = $(echo $PYPI_URL | sed -Ee 's|^.*?:\/\/(.*?)(:.*?)?\/.*$|\1|')" >> /root/pip/pip.conf
 
-if [ -f requirements.txt ]; then
-    pip install -r requirements.txt
+# Handy if you need to install libraries before running pyinstaller
+ALPINE_SHELL_CMDS=${ALPINE_SHELL_CMDS:-}
+if [[ "$ALPINE_SHELL_CMDS" != "" ]]; then
+    /bin/sh -c "$ALPINE_SHELL_CMDS"
 fi
 
-# Handy if you need to install libraries before running pyinstaller
-SHELL_CMDS=${SHELL_CMDS:-}
-if [[ "$SHELL_CMDS" != "" ]]; then
-    /bin/sh -c "$SHELL_CMDS"
+if [ -f requirements.txt ]; then
+    pip install -r requirements.txt
 fi
 
 pyinstaller --log-level=DEBUG \

@@ -28,6 +28,12 @@ echo "index-url = $PYPI_INDEX_URL" >> /root/pip/pip.conf
 echo "trusted-host = $(echo $PYPI_URL | perl -pe 's|^.*?://(.*?)(:.*?)?/.*$|$1|')" >> /root/pip/pip.conf
 ln /root/pip/pip.conf /wine/drive_c/users/root/pip/pip.ini
 
+# Handy if you need to install libraries before running pyinstaller
+SHELL_CMDS=${SHELL_CMDS:-}
+if [[ "$SHELL_CMDS" != "" ]]; then
+    /bin/bash -c "$SHELL_CMDS"
+fi
+
 if [ -f requirements.txt ]; then
     if [[ $PLATFORMS == *"linux"* ]]; then
         pip install -r requirements.txt
@@ -35,12 +41,6 @@ if [ -f requirements.txt ]; then
     if [[ $PLATFORMS == *"win"* ]]; then
         /usr/win64/bin/pip install -r requirements.txt
     fi
-fi
-
-# Handy if you need to install libraries before running pyinstaller
-SHELL_CMDS=${SHELL_CMDS:-}
-if [[ "$SHELL_CMDS" != "" ]]; then
-    /bin/bash -c "$SHELL_CMDS"
 fi
 
 echo "$@"

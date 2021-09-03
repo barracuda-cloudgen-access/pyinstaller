@@ -420,7 +420,7 @@ RUN curl -fsSLo - "https://search.cpan.org/CPAN/authors/id/R/RM/RMBARKER/File-Re
 COPY 3fa7e0328081bff6a14da29aa6a19b38d3d831ef.asc /
 RUN rpmkeys --import "/3fa7e0328081bff6a14da29aa6a19b38d3d831ef.asc" && rm -f /3fa7e0328081bff6a14da29aa6a19b38d3d831ef.asc
 RUN curl https://download.mono-project.com/repo/centos7-stable.repo | tee /etc/yum.repos.d/mono-centos7-stable.repo
-RUN yum -y install mono-devel && yum -y clean all && rm -f /anaconda-post.log
+RUN yum -y install mono-devel krb5-devel && yum -y clean all && rm -f /anaconda-post.log
 
 COPY msvc/ /msvc/
 COPY --from=vcbuilder /opt/msvc /opt/msvc
