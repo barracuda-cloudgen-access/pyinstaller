@@ -103,7 +103,7 @@ RUN set -ex \
 
 ENV OPENSSL_VERSION $OPENSSL_VERSION
 ENV OPENSSL_SHA256 $OPENSSL_SHA256
-RUN wget -O openssl-${OPENSSL_VERSION}.tar.gz https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz \
+RUN wget --no-check-certificate -O openssl-${OPENSSL_VERSION}.tar.gz https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz \
     && echo "$OPENSSL_SHA256  openssl-${OPENSSL_VERSION}.tar.gz" > sums \
     && sha256sum -c sums \
     && tar xzf openssl-${OPENSSL_VERSION}.tar.gz \
