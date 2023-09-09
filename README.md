@@ -1,6 +1,6 @@
 # Manylinux/Windows Pyinstaller Docker Image
 
-This container is based on the official [Python Manylinux](https://github.com/pypa/manylinux/) manylinux2014 docker image, which sets an entire build environment based on a very old linux version in a way such that when you build a python binary module on it, it is assured to work on any modern (glibc based) Linux and also Alpine (musl libc based) Linux.
+This container is based on the official [Python Manylinux](https://github.com/pypa/manylinux/) manylinux2014 docker image, which sets an entire build environment based on a very old linux version in a way such that when you build a python binary module on it, it is assured to work on any modern (glibc based) Linux and also Alpine 3.x (musl libc based) Linux.
 
 We had to rebuild Python inside this container using shared libraries (only latest Python 3 where PyInstaller works is supported)
 to be able to use it with the [Pyinstaller project](https://pyinstaller.org) and on top of that, the image also has a working Wine 5 installed (Wine is a Microsoft Windows emulator) with Python for windows, pip, etc. added to be able to create Pyinstaller Windows executables too. The idea for building Windows binaries using Wine was taken from [here](https://github.com/cdrx/docker-pyinstaller), but improved, based on manylinux and made polyglot, ie. the same container does both Linux and Windows.

@@ -1,11 +1,11 @@
 # Get from: https://github.com/docker-library/python/blob/master/3.9/alpine3.12/Dockerfile
-ARG PYTHON_VERSION=3.9.2
-ARG PYTHON_PIP_VERSION=21.0.1
-ARG PYTHON_GET_PIP_URL=https://github.com/pypa/get-pip/raw/b60e2320d9e8d02348525bd74e871e466afdf77c/get-pip.py
-ARG PYTHON_GET_PIP_SHA256=c3b81e5d06371e135fb3156dc7d8fd6270735088428c4a9a5ec1f342e2024565
-ARG PYINSTALLER_VERSION=4.2
-ARG OPENSSL_VERSION=1.1.1j
-ARG OPENSSL_SHA256=aaf2fcb575cdf6491b98ab4829abf78a3dec8402b8b81efc8f23c00d443981bf
+ARG PYTHON_VERSION=3.9.13
+ARG PYTHON_PIP_VERSION=23.2.1
+ARG PYTHON_GET_PIP_URL=https://raw.githubusercontent.com/pypa/get-pip/9af82b715db434abb94a0a6f3569f43e72157346/public/get-pip.py
+ARG PYTHON_GET_PIP_SHA256=45a2bb8bf2bb5eff16fdd00faef6f29731831c7c59bd9fc2bf1f3bed511ff1fe
+ARG PYINSTALLER_VERSION=5.13.2
+ARG OPENSSL_VERSION=1.1.1v
+ARG OPENSSL_SHA256=d6697e2871e77238460402e9362d47d18382b15ef9f246aba6c7bd780d38a6b0
 ARG GPG_KEY=E3FF2839C048B25C084DEBE9B26995E310250568
 ARG DUMBINIT_VERSION=1.2.5
 ARG BASEIMAGE=amd64/centos:7
@@ -16,17 +16,16 @@ ARG LD_LIBRARY_PATH_ARG="${DEVTOOLSET_ROOTPATH}/usr/lib64:${DEVTOOLSET_ROOTPATH}
 ARG PREPEND_PATH="${DEVTOOLSET_ROOTPATH}/usr/bin:"
 
 # Taken from https://github.com/mstorsjo/msvc-wine/
-FROM ubuntu:20.04 AS vcbuilder
+FROM ubuntu:23.04 AS vcbuilder
 
-RUN dpkg --add-architecture i386 && \
-    apt-get update && \
-    apt-get install -y python msitools python-simplejson python-six ca-certificates && \
+RUN apt-get update && \
+    apt-get install -y python3 msitools python3-simplejson python3-six ca-certificates && \
     apt-get clean -y && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/msvc
 COPY msvc/vsdownload.py ./
-RUN ./vsdownload.py --accept-license --dest /opt/msvc && \
+RUN python3 ./vsdownload.py --accept-license --dest /opt/msvc && \
     rm -f vsdownload.py && \
     rm -fr 'DIA SDK'
 RUN find -iname arm -type d -exec rm -fr \{\} \; || true
@@ -34,7 +33,7 @@ RUN find -iname x86 -type d -exec rm -fr \{\} \; || true
 RUN find -iname arm64 -type d -exec rm -fr \{\} \; || true
 
 
-FROM alpine:3.7 AS python_builder
+FROM alpine:3.18.3@sha256:c5c5fda71656f28e49ac9c5416b3643eaa6a108a8093151d6d1afc9463be8e33 AS python_builder
 ARG PYTHON_VERSION
 ARG PYTHON_PIP_VERSION
 ARG PYTHON_GET_PIP_URL
@@ -189,7 +188,7 @@ RUN set -ex; \
 
 
 # Heavily based on https://github.com/six8/pyinstaller-alpine/
-FROM alpine:3.7 AS alpine_pyinstaller
+FROM alpine:3.18.3@sha256:c5c5fda71656f28e49ac9c5416b3643eaa6a108a8093151d6d1afc9463be8e33 AS alpine_pyinstaller
 
 ARG PYINSTALLER_VERSION
 ENV PYINSTALLER_VERSION $PYINSTALLER_VERSION
@@ -232,7 +231,7 @@ RUN set -eux; \
     && pip install certifi pycrypto \
     && rm -rf /var/cache/apk/*
 
-RUN wget -qO pyinstaller.tar.gz https://github.com/pyinstaller/pyinstaller/releases/download/v${PYINSTALLER_VERSION}/pyinstaller-${PYINSTALLER_VERSION}.tar.gz \
+RUN wget -qO pyinstaller.tar.gz https://github.com/pyinstaller/pyinstaller/archive/refs/tags/v${PYINSTALLER_VERSION}.tar.gz \
     && tar -C /tmp -xzf pyinstaller.tar.gz \
     && rm -f pyinstaller.tar.gz \
     && cd /tmp/pyinstaller*/bootloader \
@@ -337,7 +336,7 @@ RUN export SWIG_ROOT=swig-4.0.2 && \
     export SWIG_DOWNLOAD_URL=https://sourceforge.net/projects/swig/files/swig/${SWIG_ROOT} && \
     export PCRE_ROOT=pcre-8.44 && \
     export PCRE_HASH=aecafd4af3bd0f3935721af77b889d9024b2e01d96b58471bd91a3063fb47728 && \
-    export PCRE_DOWNLOAD_URL=https://ftp.pcre.org/pub/pcre && \
+    export PCRE_DOWNLOAD_URL=https://sourceforge.net/projects/pcre/files/pcre/${PCRE_ROOT/pcre-/} && \
     manylinux-entrypoint /build_scripts/build-swig.sh
 
 
